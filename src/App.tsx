@@ -1,0 +1,91 @@
+import { useState, useCallback, useEffect } from 'react'
+import { HomePage } from './Pages/HomePage'
+import { LockScreen } from './Components/LockScreen'
+import { Button } from './Components/Button'
+import {
+  isPasswordSetupComplete,
+  lock,
+} from './Services/cryptoService'
+
+type LockState = 'unlocked' | 'locked' | 'creating-password'
+
+function App() {
+  const [lockState, setLockState] = useState<LockState>(() =>
+    isPasswordSetupComplete() ? 'locked' : 'unlocked',
+  )
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return localStorage.getItem('theme') === 'd' ? 'dark' : 'light'
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    localStorage.setItem('theme', theme === 'dark' ? 'd' : 'l')
+  }, [theme])
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'))
+  }, [])
+
+  const handleUnlock = useCallback(() => {
+    setLockState('unlocked')
+  }, [])
+
+  const handleLock = useCallback(() => {
+    lock()
+    setLockState(isPasswordSetupComplete() ? 'locked' : 'unlocked')
+  }, [])
+
+  const handleAddPassword = useCallback(() => {
+    setLockState('creating-password')
+  }, [])
+
+  if (lockState === 'locked') {
+    return <LockScreen onUnlock={handleUnlock} />
+  }
+
+  if (lockState === 'creating-password') {
+    return <LockScreen onUnlock={handleUnlock} mode="create" />
+  }
+
+  return (
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-slate-900">
+      <header className="flex-none h-14 flex items-center justify-between border-b border-gray-200 px-6 dark:border-slate-700">
+        <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+          Digna AI Akış Takibi
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            aria-label="Tema değiştir"
+          >
+            {theme === 'light' ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            )}
+          </button>
+          {isPasswordSetupComplete() ? (
+            <Button variant="secondary" onClick={handleLock}>
+              Uygulamayı Kilitle
+            </Button>
+          ) : (
+            <Button variant="secondary" onClick={handleAddPassword}>
+              Parola Koruması Ekle
+            </Button>
+          )}
+        </div>
+      </header>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <HomePage />
+      </div>
+    </div>
+  )
+}
+
+export default App
