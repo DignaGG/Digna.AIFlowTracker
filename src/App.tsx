@@ -2,17 +2,22 @@ import { useState, useCallback, useEffect } from 'react'
 import { HomePage } from './Pages/HomePage'
 import { LockScreen } from './Components/LockScreen'
 import { Button } from './Components/Button'
+import { PasswordSettingsModal } from './Components/PasswordSettingsModal'
 import {
   isPasswordSetupComplete,
-  lock,
+  isUnlocked,
 } from './Services/cryptoService'
+import { LanguageProvider } from './context/LanguageContext'
+import { useTranslation } from './hooks/useTranslation'
 
 type LockState = 'unlocked' | 'locked' | 'creating-password'
 
-function App() {
+function AppInner() {
+  const { t, language, setLanguage } = useTranslation()
   const [lockState, setLockState] = useState<LockState>(() =>
     isPasswordSetupComplete() ? 'locked' : 'unlocked',
   )
+  const [showPasswordSettings, setShowPasswordSettings] = useState(false)
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return localStorage.getItem('theme') === 'd' ? 'dark' : 'light'
@@ -31,11 +36,6 @@ function App() {
     setLockState('unlocked')
   }, [])
 
-  const handleLock = useCallback(() => {
-    lock()
-    setLockState(isPasswordSetupComplete() ? 'locked' : 'unlocked')
-  }, [])
-
   const handleAddPassword = useCallback(() => {
     setLockState('creating-password')
   }, [])
@@ -52,13 +52,20 @@ function App() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-slate-900">
       <header className="flex-none h-14 flex items-center justify-between border-b border-gray-200 px-6 dark:border-slate-700">
         <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-          Digna AI Akış Takibi
+          {t.app.title}
         </span>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}
+            className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            aria-label={language === 'tr' ? 'Switch to English' : 'Türkçeye geç'}
+          >
+            {language === 'tr' ? 'EN' : 'TR'}
+          </button>
+          <button
             onClick={toggleTheme}
             className="cursor-pointer rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800"
-            aria-label="Tema değiştir"
+            aria-label={t.app.toggleTheme}
           >
             {theme === 'light' ? (
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,21 +77,35 @@ function App() {
               </svg>
             )}
           </button>
-          {isPasswordSetupComplete() ? (
-            <Button variant="secondary" onClick={handleLock}>
-              Uygulamayı Kilitle
+          {isPasswordSetupComplete() && isUnlocked() ? (
+            <Button variant="secondary" onClick={() => setShowPasswordSettings(true)}>
+              {t.app.passwordSettings}
             </Button>
-          ) : (
+          ) : !isPasswordSetupComplete() ? (
             <Button variant="secondary" onClick={handleAddPassword}>
-              Parola Koruması Ekle
+              {t.app.addPassword}
             </Button>
-          )}
+          ) : null}
         </div>
       </header>
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <HomePage />
       </div>
+      <PasswordSettingsModal
+        isOpen={showPasswordSettings}
+        onClose={() => setShowPasswordSettings(false)}
+        onLock={() => setLockState('locked')}
+        onPasswordRemoved={() => setShowPasswordSettings(false)}
+      />
     </div>
+  )
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppInner />
+    </LanguageProvider>
   )
 }
 

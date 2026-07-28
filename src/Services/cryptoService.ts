@@ -1,4 +1,5 @@
 const SALT_KEY = 'pipeline-salt'
+const WRAPPED_KEY = 'pipeline-wrapped-mp'
 const ENC_KEY = 'pipeline-encryption'
 const STORAGE_KEY = 'pipeline-steps'
 const ITERATIONS = 100000
@@ -28,10 +29,14 @@ export function isEncryptedBlob(
 function getStoredSalt(): Uint8Array<ArrayBuffer> | null {
   const raw = localStorage.getItem(SALT_KEY)
   if (!raw) return null
-  const arr: number[] = JSON.parse(raw)
-  const salt = createBuffer(arr.length)
-  salt.set(arr)
-  return salt
+  try {
+    const arr: number[] = JSON.parse(raw)
+    const salt = createBuffer(arr.length)
+    salt.set(arr)
+    return salt
+  } catch {
+    return null
+  }
 }
 
 function storeSalt(salt: Uint8Array): void {
@@ -130,58 +135,6 @@ export function skipEncryption(): void {
   localStorage.setItem(ENC_KEY, 'disabled')
 }
 
-export async function validateAndSetPassword(
-  password: string,
-): Promise<boolean> {
-  const salt = getStoredSalt()
-  if (!salt) return false
-  const key = await deriveKey(password, salt)
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) {
-    cachedKey = key
-    return true
-  }
-  try {
-    const parsed = JSON.parse(raw)
-    if (isEncryptedBlob(parsed)) {
-      await decryptWithKey(parsed, key)
-    }
-    cachedKey = key
-    return true
-  } catch {
-    cachedKey = null
-    return false
-  }
-}
-
-export async function setupPassword(password: string): Promise<void> {
-  const salt = createBuffer(16)
-  crypto.getRandomValues(salt)
-  cachedKey = await deriveKey(password, salt)
-  storeSalt(salt)
-  localStorage.setItem(ENC_KEY, 'enabled')
-
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) {
-        const encrypted = await encryptWithKey(
-          JSON.stringify(parsed),
-          cachedKey,
-        )
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted))
-        return
-      }
-    } catch {
-      // ignore migration errors
-    }
-  }
-  // Ensure an encrypted empty array exists for future validation
-  const empty = await encryptWithKey('[]', cachedKey)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(empty))
-}
-
 export async function setKeyFromPassword(password: string): Promise<void> {
   const salt = getStoredSalt()
   if (!salt) throw new Error('Salt bulunamadı')
@@ -200,4 +153,173 @@ export async function decryptData(
 ): Promise<string> {
   if (!cachedKey) throw new Error('Kilit açık değil')
   return decryptWithKey(data, cachedKey)
+}
+
+export async function setupPasswords(
+  masterPassword: string,
+  appPassword: string,
+): Promise<void> {
+  const salt = createBuffer(16)
+  crypto.getRandomValues(salt)
+  const km = await deriveKey(masterPassword, salt)
+  const ka = await deriveKey(appPassword, salt)
+  const wrapped = await encryptWithKey(masterPassword, ka)
+  storeSalt(salt)
+  localStorage.setItem(WRAPPED_KEY, JSON.stringify(wrapped))
+  localStorage.setItem(ENC_KEY, 'enabled')
+  cachedKey = km
+
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        const encrypted = await encryptWithKey(JSON.stringify(parsed), km)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted))
+        return
+      }
+    } catch {
+      throw new Error('Mevcut veri şifrelenirken hata oluştu, veri korundu')
+    }
+  }
+  const empty = await encryptWithKey('[]', km)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(empty))
+}
+
+export async function loginWithAppPassword(
+  appPassword: string,
+): Promise<boolean> {
+  const salt = getStoredSalt()
+  if (!salt) return false
+  const ka = await deriveKey(appPassword, salt)
+  const wrappedRaw = localStorage.getItem(WRAPPED_KEY)
+  if (!wrappedRaw) return false
+  try {
+    const wrapped = JSON.parse(wrappedRaw) as { cipherText: string; iv: string }
+    const masterPassword = await decryptWithKey(wrapped, ka)
+    const km = await deriveKey(masterPassword, salt)
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (isEncryptedBlob(parsed)) {
+          await decryptWithKey(parsed, km)
+        }
+      } catch {
+        cachedKey = null
+        return false
+      }
+    }
+    cachedKey = km
+    return true
+  } catch {
+    cachedKey = null
+    return false
+  }
+}
+
+export async function changeMasterPassword(
+  currentMasterPassword: string,
+  appPassword: string,
+  newMasterPassword: string,
+): Promise<void> {
+  const salt = getStoredSalt()
+  if (!salt) throw new Error('Salt bulunamadı')
+
+  const oldKm = await deriveKey(currentMasterPassword, salt)
+  const raw = localStorage.getItem(STORAGE_KEY)
+  let plainText: string
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (isEncryptedBlob(parsed)) {
+        plainText = await decryptWithKey(parsed, oldKm)
+      } else {
+        throw new Error('Tutarsız veri durumu')
+      }
+    } catch {
+      throw new DecryptionError()
+    }
+  } else {
+    plainText = '[]'
+  }
+
+  const ka = await deriveKey(appPassword, salt)
+  const newKm = await deriveKey(newMasterPassword, salt)
+  const encrypted = await encryptWithKey(plainText, newKm)
+  const newWrapped = await encryptWithKey(newMasterPassword, ka)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted))
+  localStorage.setItem(WRAPPED_KEY, JSON.stringify(newWrapped))
+  cachedKey = newKm
+}
+
+export async function changeAppPassword(
+  masterPassword: string,
+  oldAppPassword: string,
+  newAppPassword: string,
+): Promise<void> {
+  const salt = getStoredSalt()
+  if (!salt) throw new Error('Salt bulunamadı')
+
+  const km = await deriveKey(masterPassword, salt)
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (isEncryptedBlob(parsed)) {
+        await decryptWithKey(parsed, km)
+      } else {
+        throw new Error('Tutarsız veri durumu')
+      }
+    } catch {
+      throw new DecryptionError()
+    }
+  } else {
+    throw new Error('Şifreli veri bulunamadı, tutarsız durum')
+  }
+
+  const oldKa = await deriveKey(oldAppPassword, salt)
+  const wrappedRaw = localStorage.getItem(WRAPPED_KEY)
+  if (!wrappedRaw) throw new Error('Sarmalanmış anahtar bulunamadı')
+  try {
+    const wrapped = JSON.parse(wrappedRaw) as { cipherText: string; iv: string }
+    await decryptWithKey(wrapped, oldKa)
+  } catch {
+    throw new DecryptionError()
+  }
+
+  const newKa = await deriveKey(newAppPassword, salt)
+  const newWrapped = await encryptWithKey(masterPassword, newKa)
+  localStorage.setItem(WRAPPED_KEY, JSON.stringify(newWrapped))
+}
+
+export async function removePasswordProtection(
+  masterPassword: string,
+): Promise<void> {
+  const salt = getStoredSalt()
+  if (!salt) throw new Error('Salt bulunamadı')
+
+  const km = await deriveKey(masterPassword, salt)
+  const raw = localStorage.getItem(STORAGE_KEY)
+  let plainText: string
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (isEncryptedBlob(parsed)) {
+        plainText = await decryptWithKey(parsed, km)
+      } else {
+        throw new Error('Tutarsız veri durumu')
+      }
+    } catch {
+      throw new DecryptionError()
+    }
+  } else {
+    plainText = '[]'
+  }
+
+  localStorage.setItem(STORAGE_KEY, plainText)
+  localStorage.removeItem(SALT_KEY)
+  localStorage.removeItem(WRAPPED_KEY)
+  localStorage.setItem(ENC_KEY, 'disabled')
+  cachedKey = null
 }

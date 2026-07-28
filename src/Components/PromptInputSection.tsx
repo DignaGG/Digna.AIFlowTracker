@@ -1,66 +1,265 @@
 import { useState } from 'react'
 import { Button } from './Button'
+import { useTranslation } from '../hooks/useTranslation'
+import { inputCls, textareaCls } from '../styles/formClasses'
+
+type WorkflowType = 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
 
 interface PromptInputSectionProps {
-  onSubmit: (data: { phase: number; step: number; gptPrompt: string }) => void
+  onSubmit: (data: {
+    title?: string
+    phase: number
+    step: number
+    gptPrompt: string
+    workflowType: WorkflowType
+    sourceAI?: string
+    targetAgent?: string
+    agentModel?: string
+    tags?: string[]
+  }) => void
 }
 
+const WORKFLOW_OPTIONS: { value: WorkflowType; label: string }[] = [
+  { value: 'STRICT', label: 'STRICT' },
+  { value: 'ITERATIVE', label: 'ITERATIVE' },
+]
+
 export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
-  const [phase, setPhase] = useState('')
-  const [step, setStep] = useState('')
+  const { t } = useTranslation()
+  const [title, setTitle] = useState('')
+  const [phase, setPhase] = useState('1')
+  const [step, setStep] = useState('1')
   const [gptPrompt, setGptPrompt] = useState('')
+  const [workflowType, setWorkflowType] = useState<WorkflowType>('STRICT')
+  const [isFastPassActive, setIsFastPassActive] = useState(false)
+  const [isPhaseStepActive, setIsPhaseStepActive] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const handleWorkflowChange = (value: WorkflowType) => {
+    setWorkflowType(value)
+    if (value !== 'STRICT') {
+      setIsFastPassActive(false)
+    }
+  }
+
+  const effectiveWorkflow: WorkflowType =
+    workflowType === 'STRICT' && isFastPassActive ? 'FAST_PASS' : workflowType
+  const [sourceAI, setSourceAI] = useState('')
+  const [targetAgent, setTargetAgent] = useState('')
+  const [agentModel, setAgentModel] = useState('')
+  const [tagsInput, setTagsInput] = useState('')
+
+  const submitLabels: Record<WorkflowType, string> = {
+    STRICT: t.promptForm.submitStrict,
+    FAST_PASS: t.promptForm.submitFastPass,
+    ITERATIVE: t.promptForm.submitIterative,
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const phaseNum = Number(phase)
-    const stepNum = Number(step)
-    if (!phaseNum || !stepNum || !gptPrompt.trim()) return
-    onSubmit({ phase: phaseNum, step: stepNum, gptPrompt: gptPrompt.trim() })
+    if (!gptPrompt.trim()) return
+    const phaseNum = isPhaseStepActive ? Number(phase) : 1
+    const stepNum = isPhaseStepActive ? Number(step) : 1
+    if (isPhaseStepActive && (!phaseNum || !stepNum)) return
+    const tags = tagsInput.trim()
+      ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
+      : undefined
+    onSubmit({
+      ...(title.trim() && { title: title.trim() }),
+      phase: phaseNum,
+      step: stepNum,
+      gptPrompt: gptPrompt.trim(),
+      workflowType: effectiveWorkflow,
+      ...(sourceAI.trim() && { sourceAI: sourceAI.trim() }),
+      ...(targetAgent.trim() && { targetAgent: targetAgent.trim() }),
+      ...(agentModel.trim() && { agentModel: agentModel.trim() }),
+      ...(tags && tags.length > 0 && { tags }),
+    })
   }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <div className="flex gap-4">
-        <div className="flex flex-1 flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Phase</label>
-          <input
-            type="number"
-            min={1}
-            value={phase}
-            onChange={(e) => setPhase(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-            placeholder="1"
-            required
-          />
-        </div>
-        <div className="flex flex-1 flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Step</label>
-          <input
-            type="number"
-            min={1}
-            value={step}
-            onChange={(e) => setStep(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-            placeholder="1"
-            required
-          />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{t.promptForm.title}</label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className={inputCls}
+          placeholder={t.promptForm.titlePlaceholder}
+        />
       </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{t.promptForm.workflowType}</label>
+        <div className="flex gap-1.5">
+          {WORKFLOW_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => handleWorkflowChange(opt.value)}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                workflowType === opt.value
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700'
+              }`}
+            >
+              {workflowType === opt.value && (
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {workflowType === 'STRICT' && (
+          <button
+            type="button"
+            onClick={() => setIsFastPassActive(!isFastPassActive)}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all self-start mt-1 ${
+              isFastPassActive
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-slate-500 dark:text-slate-400 dark:hover:bg-slate-700'
+            }`}
+          >
+            {isFastPassActive && (
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            {t.promptForm.fastPassToggle}
+          </button>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        <svg
+          className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        {t.promptForm.advancedOptions}
+      </button>
+
+      {showAdvanced && (
+        <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+          <button
+            type="button"
+            onClick={() => setIsPhaseStepActive(!isPhaseStepActive)}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all self-start ${
+              isPhaseStepActive
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'border border-gray-300 text-gray-500 hover:bg-gray-50 dark:border-slate-500 dark:text-slate-400 dark:hover:bg-slate-700'
+            }`}
+          >
+            {isPhaseStepActive && (
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {t.promptForm.phaseStepToggle}
+          </button>
+          {isPhaseStepActive && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.promptForm.phase}</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={phase}
+                  onChange={(e) => setPhase(e.target.value)}
+                  className={inputCls}
+                  placeholder="1"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.promptForm.step}</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={step}
+                  onChange={(e) => setStep(e.target.value)}
+                  className={inputCls}
+                  placeholder="1"
+                  required
+                />
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.promptForm.sourceAI}</label>
+              <input
+                type="text"
+                value={sourceAI}
+                onChange={(e) => setSourceAI(e.target.value)}
+                className={inputCls}
+                placeholder="gpt-4o"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.promptForm.targetAgent}</label>
+              <input
+                type="text"
+                value={targetAgent}
+                onChange={(e) => setTargetAgent(e.target.value)}
+                className={inputCls}
+                placeholder="code-executor"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.promptForm.agentModel}</label>
+              <input
+                type="text"
+                value={agentModel}
+                onChange={(e) => setAgentModel(e.target.value)}
+                className={inputCls}
+                placeholder="claude-3-opus"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.promptForm.tags}</label>
+              <input
+                type="text"
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                className={inputCls}
+                placeholder={t.promptForm.tagsPlaceholder}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
-          Orchestrator AI'dan Gelen Prompt
+          {t.promptForm.promptLabel}
         </label>
         <textarea
           rows={6}
           value={gptPrompt}
           onChange={(e) => setGptPrompt(e.target.value)}
-          className="resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-          placeholder="Prompt metnini buraya yapıştırın..."
+          className={textareaCls}
+          placeholder={t.promptForm.promptPlaceholder}
           required
         />
       </div>
       <div className="flex justify-end">
-        <Button type="submit">Kaydet ve Agent'a Hazırla</Button>
+        <Button type="submit">{submitLabels[effectiveWorkflow]}</Button>
       </div>
     </form>
   )

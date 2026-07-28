@@ -14,13 +14,21 @@ import { AgentPendingSection } from '../Components/AgentPendingSection'
 import { AgentProcessingSection } from '../Components/AgentProcessingSection'
 import { GptFeedbackSection } from '../Components/GptFeedbackSection'
 import { ArchivedSidebar } from '../Components/ArchivedSidebar'
+import { StepInspectionModal } from '../Components/StepInspectionModal'
 import { Modal } from '../Components/Modal'
 import { Button } from '../Components/Button'
+import { useTranslation } from '../hooks/useTranslation'
 
 export function HomePage() {
+  const { t } = useTranslation()
   const [activeStep, setActiveStep] = useState<IStep | null>(null)
   const [archivedSteps, setArchivedSteps] = useState<IStep[]>([])
   const [deletingArchiveId, setDeletingArchiveId] = useState<string | null>(null)
+  const [inspectingStepId, setInspectingStepId] = useState<string | null>(null)
+
+  const inspectedStep = inspectingStepId
+    ? archivedSteps.find((s) => s.id === inspectingStepId) ?? null
+    : null
 
   const refresh = useCallback(async () => {
     const [active, archived] = await Promise.all([getActiveStep(), getArchivedSteps()])
@@ -33,9 +41,22 @@ export function HomePage() {
   }, [refresh])
 
   const handleCreateStep = useCallback(
-    async (data: { phase: number; step: number; gptPrompt: string }) => {
+    async (data: {
+      title?: string
+      phase: number
+      step: number
+      gptPrompt: string
+      workflowType?: 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
+      sourceAI?: string
+      targetAgent?: string
+      agentModel?: string
+      tags?: string[]
+    }) => {
       const step = await createStep(data)
-      await updateStep(step.id, { status: STEP_STATUS.AGENT_PENDING })
+      const isFastOrIterative = data.workflowType === 'FAST_PASS' || data.workflowType === 'ITERATIVE'
+      await updateStep(step.id, {
+        status: isFastOrIterative ? STEP_STATUS.AGENT_PROCESSING : STEP_STATUS.AGENT_PENDING,
+      })
       await refresh()
     },
     [refresh],
@@ -50,16 +71,27 @@ export function HomePage() {
   const handleSubmitLog = useCallback(
     async (log: string) => {
       if (!activeStep) return
-      await updateStep(activeStep.id, {
-        agentLog: log,
-        status: STEP_STATUS.GPT_FEEDBACK_REQUIRED,
-      })
+      const updates: Partial<IStep> = { agentLog: log }
+      if (activeStep.workflowType === 'FAST_PASS') {
+        updates.status = STEP_STATUS.COMPLETED
+      } else if (activeStep.workflowType === 'ITERATIVE') {
+        updates.status = STEP_STATUS.AGENT_PENDING
+      } else {
+        updates.status = STEP_STATUS.GPT_FEEDBACK_REQUIRED
+      }
+      await updateStep(activeStep.id, updates)
       await refresh()
     },
     [activeStep, refresh],
   )
 
   const handleCompleteCycle = useCallback(async () => {
+    if (!activeStep) return
+    await updateStep(activeStep.id, { status: STEP_STATUS.COMPLETED })
+    await refresh()
+  }, [activeStep, refresh])
+
+  const handleCompleteIteration = useCallback(async () => {
     if (!activeStep) return
     await updateStep(activeStep.id, { status: STEP_STATUS.COMPLETED })
     await refresh()
@@ -81,6 +113,19 @@ export function HomePage() {
     setDeletingArchiveId(null)
   }, [])
 
+  const handleStepInspect = useCallback((id: string) => {
+    setInspectingStepId(id)
+  }, [])
+
+  const handleCloseInspect = useCallback(() => {
+    setInspectingStepId(null)
+  }, [])
+
+  const handleDeleteFromModal = useCallback((id: string) => {
+    setInspectingStepId(null)
+    setDeletingArchiveId(id)
+  }, [])
+
   const renderContent = () => {
     if (!activeStep) {
       return <PromptInputSection onSubmit={handleCreateStep} />
@@ -94,6 +139,8 @@ export function HomePage() {
           <AgentPendingSection
             gptPrompt={activeStep.gptPrompt ?? ''}
             onMarkAsSent={handleMarkAsSent}
+            workflowType={activeStep.workflowType}
+            onCompleteCycle={activeStep.workflowType === 'ITERATIVE' ? handleCompleteIteration : undefined}
           />
         )
       case STEP_STATUS.AGENT_PROCESSING:
@@ -119,8 +166,17 @@ export function HomePage() {
     <div className="flex flex-1 min-h-0 overflow-hidden">
       <ArchivedSidebar
         steps={archivedSteps}
+        onStepClick={handleStepInspect}
         onDeleteRequest={handleDeleteArchiveRequest}
       />
+
+      <StepInspectionModal
+        step={inspectedStep}
+        isOpen={inspectingStepId !== null}
+        onClose={handleCloseInspect}
+        onDeleteRequest={handleDeleteFromModal}
+      />
+
       <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-6 md:p-10 max-w-3xl mx-auto w-full">
         {activeStep && (
           <div className="flex items-center justify-between">
@@ -129,24 +185,24 @@ export function HomePage() {
             </span>
           </div>
         )}
-        {activeStep && <StateBanner status={activeStep.status} />}
+        {activeStep && <StateBanner status={activeStep.status} workflowType={activeStep.workflowType} />}
         {renderContent()}
       </main>
 
       <Modal
         isOpen={deletingArchiveId !== null}
         onClose={cancelArchiveDelete}
-        title="Kaydı Sil"
+        title={t.deleteModal.title}
       >
         <p className="mb-6 text-sm text-gray-600 dark:text-slate-400">
-          Bu kaydı silmek istediğinize emin misiniz?
+          {t.deleteModal.message}
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={cancelArchiveDelete}>
-            İptal
+            {t.deleteModal.cancel}
           </Button>
           <Button variant="danger" onClick={confirmArchiveDelete}>
-            Sil
+            {t.deleteModal.confirm}
           </Button>
         </div>
       </Modal>
