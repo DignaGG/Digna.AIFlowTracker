@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import {
-  setupPassword,
-  validateAndSetPassword,
+  setupPasswords,
+  loginWithAppPassword,
   skipEncryption,
 } from '../Services/cryptoService'
+import { useTranslation } from '../hooks/useTranslation'
+import { inputCls } from '../styles/formClasses'
 
 interface LockScreenProps {
   onUnlock: () => void
@@ -11,40 +13,59 @@ interface LockScreenProps {
 }
 
 export function LockScreen({ onUnlock, mode = 'auto' }: LockScreenProps) {
+  const { t } = useTranslation()
   const isCreate =
     mode === 'create' || localStorage.getItem('pipeline-salt') === null
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
+  const [masterPassword, setMasterPassword] = useState('')
+  const [confirmMasterPassword, setConfirmMasterPassword] = useState('')
+  const [appPassword, setAppPassword] = useState('')
+  const [confirmAppPassword, setConfirmAppPassword] = useState('')
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!password) return
 
-    if (isCreate && password !== confirm) {
-      setError('Parolalar eşleşmiyor')
-      return
-    }
-
-    setLoading(true)
-    try {
-      if (isCreate) {
-        await setupPassword(password)
+    if (isCreate) {
+      if (!masterPassword.trim() || !confirmMasterPassword.trim() || !appPassword.trim() || !confirmAppPassword.trim()) return
+      if (masterPassword !== confirmMasterPassword) {
+        setError(t.lockScreen.errorMasterMismatch)
+        return
+      }
+      if (appPassword !== confirmAppPassword) {
+        setError(t.lockScreen.errorAppMismatch)
+        return
+      }
+      if (!disclaimerAccepted) {
+        setError(t.lockScreen.errorDisclaimerRequired)
+        return
+      }
+      setLoading(true)
+      try {
+        await setupPasswords(masterPassword, appPassword)
         onUnlock()
-      } else {
-        const ok = await validateAndSetPassword(password)
+      } catch {
+        setError(t.lockScreen.errorGeneric)
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      if (!appPassword.trim()) return
+      setLoading(true)
+      try {
+        const ok = await loginWithAppPassword(appPassword)
         if (!ok) {
-          setError('Hatalı parola! Şifre çözülemedi.')
+          setError(t.lockScreen.errorDecrypt)
           return
         }
         onUnlock()
+      } catch {
+        setError(t.lockScreen.errorGeneric)
+      } finally {
+        setLoading(false)
       }
-    } catch {
-      setError('Bir hata oluştu')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -76,12 +97,12 @@ export function LockScreen({ onUnlock, mode = 'auto' }: LockScreenProps) {
             </svg>
           </div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-            Digna AI Akış Takibi
+            {t.lockScreen.title}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
             {isCreate
-              ? 'Master parola belirleyin'
-              : 'Master parolanızı girin'}
+              ? t.lockScreen.createDescription
+              : t.lockScreen.loginDescription}
           </p>
         </div>
 
@@ -92,32 +113,86 @@ export function LockScreen({ onUnlock, mode = 'auto' }: LockScreenProps) {
         )}
 
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
-              Master Parola
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-              placeholder="Parola"
-              autoFocus
-              required
-            />
-          </div>
-
           {isCreate && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  {t.lockScreen.masterPasswordLabel}
+                </label>
+                <input
+                  type="password"
+                  value={masterPassword}
+                  onChange={(e) => setMasterPassword(e.target.value)}
+                  className={inputCls}
+                  placeholder={t.lockScreen.masterPasswordPlaceholder}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  {t.lockScreen.confirmMasterPassword}
+                </label>
+                <input
+                  type="password"
+                  value={confirmMasterPassword}
+                  onChange={(e) => setConfirmMasterPassword(e.target.value)}
+                  className={inputCls}
+                  placeholder={t.lockScreen.confirmMasterPlaceholder}
+                  required
+                />
+              </div>
+              <div className="my-1 border-t border-gray-200 dark:border-slate-600" />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  {t.lockScreen.appPasswordLabel}
+                </label>
+                <input
+                  type="password"
+                  value={appPassword}
+                  onChange={(e) => setAppPassword(e.target.value)}
+                  className={inputCls}
+                  placeholder={t.lockScreen.appPasswordPlaceholder}
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                  {t.lockScreen.confirmAppPassword}
+                </label>
+                <input
+                  type="password"
+                  value={confirmAppPassword}
+                  onChange={(e) => setConfirmAppPassword(e.target.value)}
+                  className={inputCls}
+                  placeholder={t.lockScreen.confirmAppPlaceholder}
+                  required
+                />
+              </div>
+              <label className="flex cursor-pointer items-start gap-2 text-xs text-gray-500 dark:text-slate-400">
+                <input
+                  type="checkbox"
+                  checked={disclaimerAccepted}
+                  onChange={(e) => setDisclaimerAccepted(e.target.checked)}
+                  className="mt-0.5 cursor-pointer"
+                />
+                <span>{t.lockScreen.disclaimerCheckbox}</span>
+              </label>
+            </>
+          )}
+
+          {!isCreate && (
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Parolayı Onayla
+                {t.lockScreen.appPasswordLabel}
               </label>
               <input
                 type="password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                placeholder="Parola tekrar"
+                value={appPassword}
+                onChange={(e) => setAppPassword(e.target.value)}
+                className={inputCls}
+                placeholder={t.lockScreen.appPasswordPlaceholder}
+                autoFocus
                 required
               />
             </div>
@@ -125,14 +200,14 @@ export function LockScreen({ onUnlock, mode = 'auto' }: LockScreenProps) {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (isCreate && !disclaimerAccepted)}
             className="mt-2 cursor-pointer rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
-              ? 'İşleniyor...'
+              ? t.lockScreen.loading
               : isCreate
-                ? 'Parola Belirle'
-                : 'Giriş Yap'}
+                ? t.lockScreen.submitCreateDual
+                : t.lockScreen.submitLogin}
           </button>
 
           {isCreate && (
@@ -141,7 +216,7 @@ export function LockScreen({ onUnlock, mode = 'auto' }: LockScreenProps) {
               onClick={handleSkip}
               className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-700"
             >
-              Parolasız Devam Et
+              {t.lockScreen.skip}
             </button>
           )}
         </div>

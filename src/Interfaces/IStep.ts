@@ -10,6 +10,7 @@ export type StepStatus = typeof STEP_STATUS[keyof typeof STEP_STATUS]
 
 export interface IStep {
   id: string
+  title?: string
   phase: number
   step: number
   gptPrompt: string | null
@@ -17,4 +18,9 @@ export interface IStep {
   status: StepStatus
   createdAt: string
   updatedAt: string
+  sourceAI?: string
+  targetAgent?: string
+  agentModel?: string
+  workflowType?: 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
+  tags?: string[]
 }

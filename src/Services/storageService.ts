@@ -12,6 +12,14 @@ export { DecryptionError }
 
 const STORAGE_KEY = 'pipeline-steps'
 
+function migrateStep(step: Record<string, unknown>): IStep {
+  return {
+    ...step,
+    workflowType: step.workflowType ?? 'STRICT',
+    tags: step.tags ?? [],
+  } as IStep
+}
+
 async function getAllStepsRaw(): Promise<IStep[]> {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return []
@@ -19,10 +27,10 @@ async function getAllStepsRaw(): Promise<IStep[]> {
     const parsed = JSON.parse(raw)
     if (isEncryptedBlob(parsed)) {
       const plainText = await decryptData(parsed)
-      return JSON.parse(plainText) as IStep[]
+      return (JSON.parse(plainText) as Record<string, unknown>[]).map(migrateStep)
     }
     if (Array.isArray(parsed)) {
-      return parsed as IStep[]
+      return parsed.map(migrateStep)
     }
     return []
   } catch {
@@ -51,14 +59,21 @@ export async function getArchivedSteps(): Promise<IStep[]> {
 }
 
 export async function createStep(data: {
+  title?: string
   phase: number
   step: number
   gptPrompt: string
+  workflowType?: 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
+  sourceAI?: string
+  targetAgent?: string
+  agentModel?: string
+  tags?: string[]
 }): Promise<IStep> {
   const steps = await getAllStepsRaw()
   const now = new Date().toISOString()
   const step: IStep = {
     id: crypto.randomUUID(),
+    title: data.title,
     phase: data.phase,
     step: data.step,
     gptPrompt: data.gptPrompt,
@@ -66,6 +81,11 @@ export async function createStep(data: {
     status: STEP_STATUS.PROMPT_AWAITING,
     createdAt: now,
     updatedAt: now,
+    ...(data.workflowType && { workflowType: data.workflowType }),
+    ...(data.sourceAI && { sourceAI: data.sourceAI }),
+    ...(data.targetAgent && { targetAgent: data.targetAgent }),
+    ...(data.agentModel && { agentModel: data.agentModel }),
+    ...(data.tags && { tags: data.tags }),
   }
   steps.push(step)
   await persistSteps(steps)
@@ -80,7 +100,7 @@ export async function deleteStep(id: string): Promise<void> {
 
 export async function updateStep(
   id: string,
-  data: Partial<Pick<IStep, 'status' | 'gptPrompt' | 'agentLog'>>,
+  data: Partial<IStep>,
 ): Promise<IStep | null> {
   const steps = await getAllStepsRaw()
   const index = steps.findIndex((s) => s.id === id)
