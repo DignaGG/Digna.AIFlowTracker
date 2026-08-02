@@ -8,6 +8,9 @@ export const en: Locale = {
     confirm: 'Are you sure?',
     copy: 'Copy to clipboard',
     copied: 'Copied',
+    untitled: 'Untitled Step',
+    activeProcess: 'Active Process',
+    view: 'View',
   },
   app: {
     title: 'Digna AI Flow Tracker',
@@ -17,7 +20,7 @@ export const en: Locale = {
     passwordSettings: 'Password Settings',
   },
   sidebar: {
-    title: 'History',
+    title: 'HISTORY',
     empty: 'No completed records yet.',
     expand: 'Expand',
     collapse: 'Collapse',

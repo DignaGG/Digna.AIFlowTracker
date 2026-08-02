@@ -8,6 +8,7 @@ import {
   isUnlocked,
 } from './Services/cryptoService'
 import { LanguageProvider } from './context/LanguageContext'
+import { SettingsProvider } from './context/SettingsContext'
 import { useTranslation } from './hooks/useTranslation'
 
 type LockState = 'unlocked' | 'locked' | 'creating-password'
@@ -18,6 +19,15 @@ function AppInner() {
     isPasswordSetupComplete() ? 'locked' : 'unlocked',
   )
   const [showPasswordSettings, setShowPasswordSettings] = useState(false)
+  const [inspectingStepId, setInspectingStepId] = useState<string | null>(null)
+
+  const onGoHome = useCallback(() => {
+    setInspectingStepId(null)
+  }, [])
+
+  const handleStepInspect = useCallback((id: string) => {
+    setInspectingStepId(id)
+  }, [])
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return localStorage.getItem('theme') === 'd' ? 'dark' : 'light'
@@ -50,10 +60,14 @@ function AppInner() {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-white dark:bg-slate-900">
-      <header className="flex-none h-14 flex items-center justify-between border-b border-gray-200 px-6 dark:border-slate-700">
-        <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+      <header className="relative z-[60] flex-none h-14 flex items-center justify-between border-b border-gray-200 px-6 dark:border-slate-700">
+        <button
+          type="button"
+          onClick={onGoHome}
+          className="cursor-pointer text-sm font-semibold text-gray-900 transition-colors hover:text-blue-600 dark:text-slate-100 dark:hover:text-blue-400"
+        >
           {t.app.title}
-        </span>
+        </button>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setLanguage(language === 'tr' ? 'en' : 'tr')}
@@ -89,7 +103,11 @@ function AppInner() {
         </div>
       </header>
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <HomePage />
+        <HomePage
+          inspectingStepId={inspectingStepId}
+          onInspectStep={handleStepInspect}
+          onCloseInspect={onGoHome}
+        />
       </div>
       <PasswordSettingsModal
         isOpen={showPasswordSettings}
@@ -104,7 +122,9 @@ function AppInner() {
 function App() {
   return (
     <LanguageProvider>
-      <AppInner />
+      <SettingsProvider>
+        <AppInner />
+      </SettingsProvider>
     </LanguageProvider>
   )
 }

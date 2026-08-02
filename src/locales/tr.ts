@@ -6,6 +6,9 @@ export const tr = {
     confirm: 'Emin misiniz?',
     copy: 'Panoya kopyala',
     copied: 'Kopyalandı',
+    untitled: 'İsimsiz Adım',
+    activeProcess: 'Aktif Süreç',
+    view: 'Görüntüle',
   },
   app: {
     title: 'Digna AI Akış Takibi',

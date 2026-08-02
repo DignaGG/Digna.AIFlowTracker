@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from './Button'
 import { useTranslation } from '../hooks/useTranslation'
+import { useSettings } from '../context/SettingsContext'
 import { inputCls, textareaCls } from '../styles/formClasses'
 
 type WorkflowType = 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
@@ -15,6 +16,7 @@ interface PromptInputSectionProps {
     sourceAI?: string
     targetAgent?: string
     agentModel?: string
+    hasPhaseStep?: boolean
     tags?: string[]
   }) => void
 }
@@ -26,13 +28,13 @@ const WORKFLOW_OPTIONS: { value: WorkflowType; label: string }[] = [
 
 export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
   const { t } = useTranslation()
+  const { isPhaseStepActive, updateSettings } = useSettings()
   const [title, setTitle] = useState('')
   const [phase, setPhase] = useState('1')
   const [step, setStep] = useState('1')
   const [gptPrompt, setGptPrompt] = useState('')
   const [workflowType, setWorkflowType] = useState<WorkflowType>('STRICT')
   const [isFastPassActive, setIsFastPassActive] = useState(false)
-  const [isPhaseStepActive, setIsPhaseStepActive] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   const handleWorkflowChange = (value: WorkflowType) => {
@@ -68,6 +70,7 @@ export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
       ...(title.trim() && { title: title.trim() }),
       phase: phaseNum,
       step: stepNum,
+      hasPhaseStep: isPhaseStepActive,
       gptPrompt: gptPrompt.trim(),
       workflowType: effectiveWorkflow,
       ...(sourceAI.trim() && { sourceAI: sourceAI.trim() }),
@@ -156,7 +159,7 @@ export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
         <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-slate-700 dark:bg-slate-800">
           <button
             type="button"
-            onClick={() => setIsPhaseStepActive(!isPhaseStepActive)}
+            onClick={() => updateSettings({ isPhaseStepActive: !isPhaseStepActive })}
             className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all self-start ${
               isPhaseStepActive
                 ? 'bg-indigo-600 text-white shadow-sm'

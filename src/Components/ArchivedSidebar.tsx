@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { IStep } from '../Interfaces/IStep'
+import { resolveStepTitle } from '../utils/stepTitle'
 import { useTranslation } from '../hooks/useTranslation'
 
 interface ArchivedSidebarProps {
@@ -18,7 +19,7 @@ export function ArchivedSidebar({ steps, onStepClick, onDeleteRequest }: Archive
     >
       <div className="flex-none flex items-center justify-between border-b border-gray-200 p-4 dark:border-slate-700">
         {!collapsed && (
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+          <h2 className="text-xs font-semibold tracking-wider text-gray-500 dark:text-slate-400">
             {t.sidebar.title}
           </h2>
         )}
@@ -50,9 +51,9 @@ export function ArchivedSidebar({ steps, onStepClick, onDeleteRequest }: Archive
                 key={s.id}
                 onClick={() => onStepClick(s.id)}
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-green-100 text-xs font-medium text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60"
-                title={`P${s.phase}.S${s.step}`}
+                title={s.hasPhaseStep === true ? `P${s.phase}.S${s.step}` : resolveStepTitle(s) || t.common.untitled}
               >
-                {s.step}
+                {s.hasPhaseStep === true ? s.step : (resolveStepTitle(s) || t.common.untitled).charAt(0).toUpperCase()}
               </button>
             ))}
           </div>
@@ -75,11 +76,16 @@ export function ArchivedSidebar({ steps, onStepClick, onDeleteRequest }: Archive
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
-              <div className="mb-1 flex items-center gap-2 text-xs text-gray-500">
-                <span className="rounded bg-green-100 px-1.5 py-0.5 font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
-                  P{s.phase}.S{s.step}
-                </span>
-              </div>
+              {s.hasPhaseStep === true && (
+                <div className="mb-1 flex items-center gap-2 text-xs text-gray-500">
+                  <span className="rounded bg-green-100 px-1.5 py-0.5 font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                    P{s.phase}.S{s.step}
+                  </span>
+                </div>
+              )}
+              <p className="mb-0.5 truncate break-all text-sm font-semibold text-gray-900 dark:text-slate-100">
+                {resolveStepTitle(s) || t.common.untitled}
+              </p>
               <p className="line-clamp-2 text-sm text-gray-700 dark:text-slate-300">
                 {s.gptPrompt}
               </p>

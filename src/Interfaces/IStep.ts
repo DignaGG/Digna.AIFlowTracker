@@ -13,6 +13,7 @@ export interface IStep {
   title?: string
   phase: number
   step: number
+  hasPhaseStep?: boolean
   gptPrompt: string | null
   agentLog: string | null
   status: StepStatus

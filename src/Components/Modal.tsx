@@ -32,7 +32,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
     >
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-slate-800">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
+          <h2 className="min-w-0 flex-1 truncate break-all pr-8 text-lg font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
           <button
             onClick={onClose}
             className="cursor-pointer rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { IStep } from '../Interfaces/IStep'
+import { resolveStepTitle } from '../utils/stepTitle'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { useTranslation } from '../hooks/useTranslation'
@@ -108,7 +109,11 @@ export function StepInspectionModal({ step, isOpen, onClose, onDeleteRequest }: 
   const localeStr = language === 'tr' ? 'tr-TR' : 'en-US'
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`P${step.phase}.S${step.step} — ${t.stepInspection.title}`}>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`${step.hasPhaseStep === true ? `P${step.phase}.S${step.step} — ` : ''}${resolveStepTitle(step) || t.common.untitled}`}
+    >
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusColor(step.status)}`}>
@@ -155,7 +160,7 @@ export function StepInspectionModal({ step, isOpen, onClose, onDeleteRequest }: 
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.stepInspection.promptLabel}</span>
             <CopyButton value={step.gptPrompt} />
           </div>
-          <pre className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+          <pre className="max-h-40 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all break-words rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
             {step.gptPrompt ?? '—'}
           </pre>
         </div>
@@ -165,7 +170,7 @@ export function StepInspectionModal({ step, isOpen, onClose, onDeleteRequest }: 
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.stepInspection.logLabel}</span>
             <CopyButton value={step.agentLog} />
           </div>
-          <pre className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+          <pre className="max-h-40 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all break-words rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
             {step.agentLog ?? '—'}
           </pre>
         </div>

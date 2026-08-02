@@ -6,6 +6,7 @@ const DEFAULT_CONFIG: IAppConfig = {
   hasCompletedOnboarding: false,
   preferredLanguage: 'tr',
   defaultWorkflow: 'STRICT',
+  isPhaseStepActive: false,
 }
 
 export function getConfig(): IAppConfig {
@@ -17,6 +18,7 @@ export function getConfig(): IAppConfig {
       hasCompletedOnboarding: parsed.hasCompletedOnboarding ?? DEFAULT_CONFIG.hasCompletedOnboarding,
       preferredLanguage: parsed.preferredLanguage ?? DEFAULT_CONFIG.preferredLanguage,
       defaultWorkflow: parsed.defaultWorkflow ?? DEFAULT_CONFIG.defaultWorkflow,
+      isPhaseStepActive: parsed.isPhaseStepActive ?? DEFAULT_CONFIG.isPhaseStepActive,
     }
   } catch {
     return { ...DEFAULT_CONFIG }

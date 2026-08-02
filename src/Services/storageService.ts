@@ -58,6 +58,13 @@ export async function getArchivedSteps(): Promise<IStep[]> {
   return steps.filter((s) => s.status === STEP_STATUS.COMPLETED)
 }
 
+export async function getAllSteps(): Promise<{ active: IStep | null; archived: IStep[] }> {
+  const steps = await getAllStepsRaw()
+  const active = steps.find((s) => s.status !== STEP_STATUS.COMPLETED) ?? null
+  const archived = steps.filter((s) => s.status === STEP_STATUS.COMPLETED)
+  return { active, archived }
+}
+
 export async function createStep(data: {
   title?: string
   phase: number
@@ -67,6 +74,7 @@ export async function createStep(data: {
   sourceAI?: string
   targetAgent?: string
   agentModel?: string
+  hasPhaseStep?: boolean
   tags?: string[]
 }): Promise<IStep> {
   const steps = await getAllStepsRaw()
@@ -85,6 +93,7 @@ export async function createStep(data: {
     ...(data.sourceAI && { sourceAI: data.sourceAI }),
     ...(data.targetAgent && { targetAgent: data.targetAgent }),
     ...(data.agentModel && { agentModel: data.agentModel }),
+    ...(data.hasPhaseStep === true && { hasPhaseStep: true }),
     ...(data.tags && { tags: data.tags }),
   }
   steps.push(step)
