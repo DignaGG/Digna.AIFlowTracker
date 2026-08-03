@@ -37,45 +37,58 @@ Built as a privacy-first developer utility within the **Digna Ecosystem**, it fe
 ```text
 Digna.AIFlowTracker/
 ├── public/
-│   ├── demo.gif                        # Application preview animation
-│   ├── favicon.svg
-│   └── icons.svg
+│   ├── demo.gif                  # Animated demo showing the app in action
+│   ├── favicon.svg               # Site favicon in SVG format
+│   └── icons.svg                 # Sprite of UI icons used across the app
 ├── src/
 │   ├── Components/
-│   │   ├── AgentPendingSection.tsx     # One-click copy & dispatch section
-│   │   ├── AgentProcessingSection.tsx  # Agent log capture module
-│   │   ├── ArchivedSidebar.tsx         # Scroll-isolated historical records panel
-│   │   ├── Button.tsx                  # Reusable variant button component
-│   │   ├── GptFeedbackSection.tsx      # Feedback payload generator & loop finisher
-│   │   ├── LockScreen.tsx              # Zero-knowledge auth & dual-password setup
-│   │   ├── Modal.tsx                   # Portal-based overlay component
-│   │   ├── PasswordSettingsModal.tsx   # Action-first password management modal
-│   │   ├── PromptInputSection.tsx      # Orchestrator prompt input module
-│   │   └── StateBanner.tsx             # Dynamic state notification header
+│   │   ├── AgentPendingSection.tsx   # Lists agents waiting to be processed
+│   │   ├── AgentProcessingSection.tsx # Shows agents currently being processed
+│   │   ├── ArchivedSidebar.tsx       # Sidebar listing archived steps/records
+│   │   ├── Button.tsx                # Reusable button component
+│   │   ├── GptFeedbackSection.tsx    # Displays GPT-generated feedback for agents
+│   │   ├── LockScreen.tsx            # App lock/unlock screen for access control
+│   │   ├── Modal.tsx                 # Generic modal dialog wrapper component
+│   │   ├── PasswordSettingsModal.tsx # Modal for configuring app password settings
+│   │   ├── PromptInputSection.tsx    # Input area for submitting agent prompts
+│   │   └── StateBanner.tsx           # Banner reflecting current tracker state
+│   ├── context/
+│   │   ├── LanguageContext.tsx      # React context providing localization state
+│   │   └── SettingsContext.tsx      # React context providing app settings state
+│   ├── hooks/
+│   │   └── useTranslation.ts        # Hook returning translated strings via context
 │   ├── Interfaces/
-│   │   └── IStep.ts                    # State definitions & Step data models
+│   │   ├── IAppConfig.ts            # Type definitions for app configuration
+│   │   └── IStep.ts                 # Type definition for an agent workflow step
 │   ├── locales/
-│   │   ├── en.ts                       # English locale dictionary
-│   │   └── tr.ts                       # Turkish locale dictionary
+│   │   ├── en.ts                    # English translation dictionary
+│   │   ├── index.ts                 # Locale bundle aggregation and exports
+│   │   └── tr.ts                    # Turkish translation dictionary
 │   ├── Pages/
-│   │   └── HomePage.tsx                # Finite state machine orchestration page
+│   │   └── HomePage.tsx             # Main page of the AI flow tracker
 │   ├── Services/
-│   │   ├── cryptoService.ts            # Pure Web Crypto API (AES-GCM / PBKDF2 / Key Wrapping)
-│   │   └── storageService.ts           # Encrypted LocalStorage I/O interceptor
+│   │   ├── configService.ts         # Loads and manages settings/config data
+│   │   ├── cryptoService.ts         # Encrypts/decrypts sensitive stored data
+│   │   └── storageService.ts        # Persists data to local storage
 │   ├── styles/
-│   │   └── formClasses.ts              # Centralized high-contrast form element styles
-│   ├── App.tsx                         # Theme & Security root wrapper
-│   ├── index.css                       # Global styles & Tailwind imports
-│   └── main.tsx                        # Application entry point
-├── .gitignore
-├── .oxlintrc.json
-├── index.html
-├── package.json
-├── README.md
-├── tsconfig.app.json
-├── tsconfig.json
-├── tsconfig.node.json
-└── vite.config.ts
+│   │   └── formClasses.ts           # Shared CSS class strings for form elements
+│   ├── utils/
+│   │   └── stepTitle.ts             # Helper building display titles for steps
+│   ├── App.tsx                      # Root component wiring providers and routes
+│   ├── index.css                    # Global base stylesheet
+│   └── main.tsx                     # Application bootstrap entry point
+├── .gitignore                       # Defines version-ignored files and folders
+├── .oxlintrc.json                   # OXLint linter configuration
+├── index.html                       # HTML shell hosting the React app
+├── LICENSE                          # Project license text
+├── package-lock.json                # Locked dependency versions for npm
+├── package.json                     # Project metadata and npm scripts/dependencies
+├── PROJECT_STATE.md                 # Tracks current project development status
+├── README.md                        # Project overview and usage documentation
+├── tsconfig.app.json                # TypeScript config for application code
+├── tsconfig.json                    # Base TypeScript configuration
+├── tsconfig.node.json               # TypeScript config for tooling/node files
+└── vite.config.ts                   # Vite build and dev server configuration
 ```
 
 ---
