@@ -11,16 +11,28 @@ import {
 export { DecryptionError }
 
 const STORAGE_KEY = 'pipeline-steps'
+const PERSIST_DEBOUNCE_MS = 400
+
+const LEGACY_GPT_STATUS: string = 'GPT_FEEDBACK_REQUIRED'
+const LLM_STATUS: string = STEP_STATUS.LLM_FEEDBACK_REQUIRED
+
+let latestSnapshot: IStep[] | null = null
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+let writeChain: Promise<void> = Promise.resolve()
 
 function migrateStep(step: Record<string, unknown>): IStep {
   return {
     ...step,
+    prompt: step.prompt ?? step.gptPrompt ?? null,
+    status: step.status === LEGACY_GPT_STATUS ? LLM_STATUS : step.status,
     workflowType: step.workflowType ?? 'STRICT',
     tags: step.tags ?? [],
+    iterationHistory: Array.isArray(step.iterationHistory) ? step.iterationHistory : [],
   } as IStep
 }
 
 async function getAllStepsRaw(): Promise<IStep[]> {
+  if (latestSnapshot !== null) return [...latestSnapshot]
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return []
   try {
@@ -38,7 +50,7 @@ async function getAllStepsRaw(): Promise<IStep[]> {
   }
 }
 
-async function persistSteps(steps: IStep[]): Promise<void> {
+async function persistNow(steps: IStep[]): Promise<void> {
   const plainText = JSON.stringify(steps)
   if (isEncryptionActive()) {
     const encrypted = await encryptData(plainText)
@@ -48,9 +60,54 @@ async function persistSteps(steps: IStep[]): Promise<void> {
   }
 }
 
-export async function getActiveStep(): Promise<IStep | null> {
+function schedulePersist(steps: IStep[]): void {
+  latestSnapshot = steps
+  if (debounceTimer !== null) {
+    window.clearTimeout(debounceTimer)
+  }
+  debounceTimer = window.setTimeout(() => {
+    debounceTimer = null
+    void flushPendingPersists()
+  }, PERSIST_DEBOUNCE_MS)
+}
+
+export function flushPendingPersists(): Promise<void> {
+  const snapshot = latestSnapshot
+  if (snapshot === null) return writeChain
+  writeChain = writeChain.then(() => persistNow(snapshot))
+  return writeChain
+}
+
+function flushPendingSync(): void {
+  if (debounceTimer !== null) {
+    window.clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
+  if (latestSnapshot === null) return
+  if (isEncryptionActive()) {
+    void flushPendingPersists()
+    return
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(latestSnapshot))
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    flushPendingSync()
+  })
+}
+
+const ARCHIVED_STATUS: string = 'ARCHIVED'
+
+const isActiveStep = (s: IStep): boolean =>
+  s.status !== STEP_STATUS.COMPLETED && s.status !== ARCHIVED_STATUS
+
+export async function getActiveSteps(key?: CryptoKey): Promise<IStep[]> {
+  if (key !== undefined && !(key instanceof CryptoKey)) {
+    throw new Error('getActiveSteps: geçerli bir CryptoKey gerekli (Zero-Knowledge guard)')
+  }
   const steps = await getAllStepsRaw()
-  return steps.find((s) => s.status !== STEP_STATUS.COMPLETED) ?? null
+  return steps.filter(isActiveStep)
 }
 
 export async function getArchivedSteps(): Promise<IStep[]> {
@@ -58,18 +115,28 @@ export async function getArchivedSteps(): Promise<IStep[]> {
   return steps.filter((s) => s.status === STEP_STATUS.COMPLETED)
 }
 
-export async function getAllSteps(): Promise<{ active: IStep | null; archived: IStep[] }> {
+export async function getAllSteps(): Promise<{
+  activeSteps: IStep[]
+  archivedSteps: IStep[]
+  active: IStep | null
+  archived: IStep[]
+}> {
   const steps = await getAllStepsRaw()
-  const active = steps.find((s) => s.status !== STEP_STATUS.COMPLETED) ?? null
-  const archived = steps.filter((s) => s.status === STEP_STATUS.COMPLETED)
-  return { active, archived }
+  const activeSteps = steps.filter(isActiveStep)
+  const archivedSteps = steps.filter((s) => s.status === STEP_STATUS.COMPLETED)
+  return {
+    activeSteps,
+    archivedSteps,
+    active: activeSteps[0] ?? null,
+    archived: archivedSteps,
+  }
 }
 
 export async function createStep(data: {
   title?: string
   phase: number
   step: number
-  gptPrompt: string
+  prompt: string
   workflowType?: 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
   sourceAI?: string
   targetAgent?: string
@@ -84,7 +151,7 @@ export async function createStep(data: {
     title: data.title,
     phase: data.phase,
     step: data.step,
-    gptPrompt: data.gptPrompt,
+    prompt: data.prompt,
     agentLog: null,
     status: STEP_STATUS.PROMPT_AWAITING,
     createdAt: now,
@@ -97,14 +164,16 @@ export async function createStep(data: {
     ...(data.tags && { tags: data.tags }),
   }
   steps.push(step)
-  await persistSteps(steps)
+  schedulePersist(steps)
+  await flushPendingPersists()
   return step
 }
 
 export async function deleteStep(id: string): Promise<void> {
   const steps = await getAllStepsRaw()
   const filtered = steps.filter((s) => s.id !== id)
-  await persistSteps(filtered)
+  schedulePersist(filtered)
+  await flushPendingPersists()
 }
 
 export async function updateStep(
@@ -119,6 +188,9 @@ export async function updateStep(
     ...data,
     updatedAt: new Date().toISOString(),
   }
-  await persistSteps(steps)
+  schedulePersist(steps)
+  if (data.status === STEP_STATUS.COMPLETED) {
+    await flushPendingPersists()
+  }
   return steps[index]
 }

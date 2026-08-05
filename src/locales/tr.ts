@@ -24,6 +24,25 @@ export const tr = {
     collapse: 'Daralt',
     deleteLabel: 'Sil',
   },
+  drawer: {
+    title: 'Aktif Seanslar',
+    newSession: 'Yeni Seans',
+    empty: 'Aktif seans yok.',
+  },
+  timeline: {
+    title: 'İterasyon Geçmişi',
+    loop: 'Döngü',
+    promptLabel: 'Döngü Promptu',
+    logLabel: 'Döngü Logu',
+  },
+  filters: {
+    searchPlaceholder: 'Ara (başlık/prompt/tag)...',
+    phaseLabel: 'Faz',
+    allPhases: 'Tüm Fazlar',
+    stepLabel: 'Step',
+    allSteps: 'Tüm Step\'ler',
+    empty: 'Filtreye uygun kayıt yok.',
+  },
   promptForm: {
     title: 'Görev / Akış Adı',
     titlePlaceholder: 'Opsiyonel, örn: "Code Review v3"',
@@ -56,7 +75,7 @@ export const tr = {
     logPlaceholder: 'Agent çıktısını buraya yapıştırın...',
     submitLog: "Log'u Kaydet ve Orchestrator AI'a Gönder",
   },
-  gptFeedback: {
+  llmFeedback: {
     title: "Bekleyen Eylem: Agent Logunu Kopyala, Orchestrator AI'a Geri Besleme Yap!",
     description: "Log'u alıp Orchestrator AI'a geri besleme yapmadan döngü ilerleyemez.",
     logLabel: 'Agent Logu',
@@ -67,7 +86,7 @@ export const tr = {
     promptAwaiting: 'Prompt Bekleniyor',
     agentPending: "Agent'a Atılmayı Bekliyor",
     agentProcessing: 'Agent İşliyor',
-    gptFeedbackRequired: 'Orchestrator AI Geri Bildirimi Gerekli',
+    llmFeedbackRequired: 'Orchestrator AI Geri Bildirimi Gerekli',
     completed: 'Tamamlandı',
     iterativeProcessing: 'Agent Döngüsü - İterasyon Devam Ediyor',
   },

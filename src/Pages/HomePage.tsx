@@ -4,6 +4,7 @@ import { STEP_STATUS } from '../Interfaces/IStep'
 import { resolveStepTitle } from '../utils/stepTitle'
 import {
   getAllSteps,
+  getActiveSteps,
   createStep,
   updateStep,
   deleteStep,
@@ -12,8 +13,9 @@ import { StateBanner } from '../Components/StateBanner'
 import { PromptInputSection } from '../Components/PromptInputSection'
 import { AgentPendingSection } from '../Components/AgentPendingSection'
 import { AgentProcessingSection } from '../Components/AgentProcessingSection'
-import { GptFeedbackSection } from '../Components/GptFeedbackSection'
+import { LlmFeedbackSection } from '../Components/LlmFeedbackSection'
 import { ArchivedSidebar } from '../Components/ArchivedSidebar'
+import { ActiveTasksDrawer } from '../Components/ActiveTasksDrawer'
 import { StepInspectionModal } from '../Components/StepInspectionModal'
 import { Modal } from '../Components/Modal'
 import { Button } from '../Components/Button'
@@ -23,17 +25,35 @@ interface HomePageProps {
   inspectingStepId: string | null
   onInspectStep: (id: string) => void
   onCloseInspect: () => void
+  homeResetSignal: number
 }
 
-export function HomePage({ inspectingStepId, onInspectStep, onCloseInspect }: HomePageProps) {
+export function HomePage({
+  inspectingStepId,
+  onInspectStep,
+  onCloseInspect,
+  homeResetSignal,
+}: HomePageProps) {
   const { t } = useTranslation()
-  const [activeStep, setActiveStep] = useState<IStep | null>(null)
+  const [activeSteps, setActiveSteps] = useState<IStep[]>([])
   const [archivedSteps, setArchivedSteps] = useState<IStep[]>([])
+  const [focusedStepId, setFocusedStepId] = useState<string | null>(null)
   const [deletingArchiveId, setDeletingArchiveId] = useState<string | null>(null)
+
+  const focusedStep =
+    focusedStepId !== null
+      ? activeSteps.find((s) => s.id === focusedStepId) ?? null
+      : null
 
   const inspectedStep = inspectingStepId
     ? archivedSteps.find((s) => s.id === inspectingStepId) ?? null
     : null
+
+  useEffect(() => {
+    if (homeResetSignal > 0) {
+      setFocusedStepId(null)
+    }
+  }, [homeResetSignal])
 
   useEffect(() => {
     if (inspectingStepId && !inspectedStep) {
@@ -42,9 +62,14 @@ export function HomePage({ inspectingStepId, onInspectStep, onCloseInspect }: Ho
   }, [inspectingStepId, inspectedStep, onCloseInspect])
 
   const refresh = useCallback(async () => {
-    const { active, archived } = await getAllSteps()
-    setActiveStep(active)
+    const active = await getActiveSteps()
+    const { archivedSteps: archived } = await getAllSteps()
+    setActiveSteps(active)
     setArchivedSteps(archived)
+    setFocusedStepId((prev) => {
+      if (prev !== null && active.some((s) => s.id === prev)) return prev
+      return active.length > 0 ? (active[0]?.id ?? null) : null
+    })
   }, [])
 
   useEffect(() => {
@@ -56,7 +81,7 @@ export function HomePage({ inspectingStepId, onInspectStep, onCloseInspect }: Ho
       title?: string
       phase: number
       step: number
-      gptPrompt: string
+      prompt: string
       workflowType?: 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
       sourceAI?: string
       targetAgent?: string
@@ -70,44 +95,55 @@ export function HomePage({ inspectingStepId, onInspectStep, onCloseInspect }: Ho
         status: isFastOrIterative ? STEP_STATUS.AGENT_PROCESSING : STEP_STATUS.AGENT_PENDING,
       })
       await refresh()
+      setFocusedStepId(step.id)
     },
     [refresh],
   )
 
   const handleMarkAsSent = useCallback(async () => {
-    if (!activeStep) return
-    await updateStep(activeStep.id, { status: STEP_STATUS.AGENT_PROCESSING })
+    if (!focusedStep) return
+    await updateStep(focusedStep.id, { status: STEP_STATUS.AGENT_PROCESSING })
     await refresh()
-  }, [activeStep, refresh])
+  }, [focusedStep, refresh])
 
   const handleSubmitLog = useCallback(
     async (log: string) => {
-      if (!activeStep) return
+      if (!focusedStep) return
       const updates: Partial<IStep> = { agentLog: log }
-      if (activeStep.workflowType === 'FAST_PASS') {
-        updates.status = STEP_STATUS.COMPLETED
-      } else if (activeStep.workflowType === 'ITERATIVE') {
+      if (focusedStep.workflowType === 'ITERATIVE') {
+        const prevHistory = focusedStep.iterationHistory ?? []
+        updates.iterationHistory = [
+          ...prevHistory,
+          {
+            cycleId: crypto.randomUUID(),
+            timestamp: Date.now(),
+            prompt: focusedStep.prompt ?? '',
+            agentLog: log,
+          },
+        ]
         updates.status = STEP_STATUS.AGENT_PENDING
+      } else if (focusedStep.workflowType === 'FAST_PASS') {
+        updates.status = STEP_STATUS.COMPLETED
       } else {
-        updates.status = STEP_STATUS.GPT_FEEDBACK_REQUIRED
+        updates.status = STEP_STATUS.LLM_FEEDBACK_REQUIRED
       }
-      await updateStep(activeStep.id, updates)
+      await updateStep(focusedStep.id, updates)
       await refresh()
     },
-    [activeStep, refresh],
+    [focusedStep, refresh],
   )
 
   const handleCompleteCycle = useCallback(async () => {
-    if (!activeStep) return
-    await updateStep(activeStep.id, { status: STEP_STATUS.COMPLETED })
+    if (!focusedStep) return
+    await updateStep(focusedStep.id, { status: STEP_STATUS.COMPLETED })
     await refresh()
-  }, [activeStep, refresh])
+  }, [focusedStep, refresh])
 
   const handleCompleteIteration = useCallback(async () => {
-    if (!activeStep) return
-    await updateStep(activeStep.id, { status: STEP_STATUS.COMPLETED })
+    if (!focusedStep) return
+    await updateStep(focusedStep.id, { status: STEP_STATUS.COMPLETED })
     await refresh()
-  }, [activeStep, refresh])
+  }, [focusedStep, refresh])
 
   const handleDeleteArchiveRequest = useCallback((id: string) => {
     setDeletingArchiveId(id)
@@ -131,33 +167,33 @@ export function HomePage({ inspectingStepId, onInspectStep, onCloseInspect }: Ho
   }, [onCloseInspect])
 
   const renderContent = () => {
-    if (!activeStep) {
-      return <PromptInputSection onSubmit={handleCreateStep} />
+    if (!focusedStep) {
+      return <PromptInputSection key={focusedStepId || 'new-session'} onSubmit={handleCreateStep} />
     }
 
-    switch (activeStep.status) {
+    switch (focusedStep.status) {
       case STEP_STATUS.PROMPT_AWAITING:
-        return <PromptInputSection onSubmit={handleCreateStep} />
+        return <PromptInputSection key={focusedStepId || 'new-session'} onSubmit={handleCreateStep} />
       case STEP_STATUS.AGENT_PENDING:
         return (
           <AgentPendingSection
-            gptPrompt={activeStep.gptPrompt ?? ''}
+            prompt={focusedStep.prompt ?? ''}
             onMarkAsSent={handleMarkAsSent}
-            workflowType={activeStep.workflowType}
-            onCompleteCycle={activeStep.workflowType === 'ITERATIVE' ? handleCompleteIteration : undefined}
+            workflowType={focusedStep.workflowType}
+            onCompleteCycle={focusedStep.workflowType === 'ITERATIVE' ? handleCompleteIteration : undefined}
           />
         )
       case STEP_STATUS.AGENT_PROCESSING:
         return (
           <AgentProcessingSection
-            gptPrompt={activeStep.gptPrompt ?? ''}
+            prompt={focusedStep.prompt ?? ''}
             onSubmitLog={handleSubmitLog}
           />
         )
-      case STEP_STATUS.GPT_FEEDBACK_REQUIRED:
+      case STEP_STATUS.LLM_FEEDBACK_REQUIRED:
         return (
-          <GptFeedbackSection
-            agentLog={activeStep.agentLog ?? ''}
+          <LlmFeedbackSection
+            agentLog={focusedStep.agentLog ?? ''}
             onCompleteCycle={handleCompleteCycle}
           />
         )
@@ -181,17 +217,39 @@ export function HomePage({ inspectingStepId, onInspectStep, onCloseInspect }: Ho
         onDeleteRequest={handleDeleteFromModal}
       />
 
-      <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-6 md:p-10 max-w-3xl mx-auto w-full">
-        {activeStep?.hasPhaseStep === true && (
-          <div className="flex items-center justify-between">
-            <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-slate-700 dark:text-slate-300">
-              P{activeStep.phase}.S{activeStep.step}
-            </span>
-          </div>
-        )}
-        {activeStep && <StateBanner status={activeStep.status} workflowType={activeStep.workflowType} />}
-        {renderContent()}
-      </main>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <main className="flex flex-1 flex-col gap-6 overflow-y-auto p-6 md:p-10 max-w-3xl mx-auto w-full">
+          {focusedStep?.hasPhaseStep === true && (
+            <div className="flex items-center gap-2">
+              {focusedStep.workflowType === 'ITERATIVE' ? (
+                <>
+                  <span className="rounded-md bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
+                    {t.promptForm.phase} {focusedStep.phase}
+                  </span>
+                  <span className="rounded-md bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300">
+                    {t.timeline.loop} #{(focusedStep.iterationHistory?.length ?? 0) + 1}
+                  </span>
+                </>
+              ) : (
+                <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-slate-700 dark:text-slate-300">
+                  P{focusedStep.phase}.S{focusedStep.step}
+                </span>
+              )}
+            </div>
+          )}
+          {focusedStep && (
+            <StateBanner status={focusedStep.status} workflowType={focusedStep.workflowType} />
+          )}
+          {renderContent()}
+        </main>
+
+        <ActiveTasksDrawer
+          activeSteps={activeSteps}
+          focusedStepId={focusedStepId}
+          onSelect={setFocusedStepId}
+          onNewSession={() => setFocusedStepId(null)}
+        />
+      </div>
 
       <Modal
         isOpen={deletingArchiveId !== null}
@@ -211,11 +269,11 @@ export function HomePage({ inspectingStepId, onInspectStep, onCloseInspect }: Ho
         </div>
       </Modal>
 
-      {activeStep && inspectingStepId !== null && (
-        <div className="fixed bottom-4 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-2 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+      {focusedStep && inspectingStepId !== null && (
+        <div className="fixed bottom-16 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-2 shadow-lg dark:border-slate-700 dark:bg-slate-800">
           <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-green-500" />
           <span className="max-w-56 truncate text-sm font-medium text-gray-700 dark:text-slate-300">
-            {t.common.activeProcess}: {resolveStepTitle(activeStep) || t.common.untitled}
+            {t.common.activeProcess}: {resolveStepTitle(focusedStep) || t.common.untitled}
           </span>
           <button
             type="button"

@@ -26,6 +26,25 @@ export const en: Locale = {
     collapse: 'Collapse',
     deleteLabel: 'Delete',
   },
+  drawer: {
+    title: 'Active Tasks',
+    newSession: 'New Session',
+    empty: 'No active sessions.',
+  },
+  timeline: {
+    title: 'Iteration History',
+    loop: 'Loop',
+    promptLabel: 'Loop Prompt',
+    logLabel: 'Loop Log',
+  },
+  filters: {
+    searchPlaceholder: 'Search (title/prompt/tag)...',
+    phaseLabel: 'Phase',
+    allPhases: 'All Phases',
+    stepLabel: 'Step',
+    allSteps: 'All Steps',
+    empty: 'No records match the filter.',
+  },
   promptForm: {
     title: 'Task / Flow Name',
     titlePlaceholder: 'Optional, e.g. "Code Review v3"',
@@ -58,7 +77,7 @@ export const en: Locale = {
     logPlaceholder: 'Paste agent output here...',
     submitLog: 'Save Log & Send to Orchestrator AI',
   },
-  gptFeedback: {
+  llmFeedback: {
     title: 'Pending Action: Copy Agent Log, Feed Back to Orchestrator AI!',
     description: 'The loop cannot proceed without feeding the log back to Orchestrator AI.',
     logLabel: 'Agent Log',
@@ -69,7 +88,7 @@ export const en: Locale = {
     promptAwaiting: 'Awaiting Prompt',
     agentPending: 'Waiting to be Sent to Agent',
     agentProcessing: 'Agent Processing',
-    gptFeedbackRequired: 'Orchestrator AI Feedback Required',
+    llmFeedbackRequired: 'Orchestrator AI Feedback Required',
     completed: 'Completed',
     iterativeProcessing: 'Agent Loop - Iteration in Progress',
   },

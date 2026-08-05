@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { Button } from './Button'
 import { useTranslation } from '../hooks/useTranslation'
 import { useSettings } from '../context/SettingsContext'
@@ -11,7 +11,7 @@ interface PromptInputSectionProps {
     title?: string
     phase: number
     step: number
-    gptPrompt: string
+    prompt: string
     workflowType: WorkflowType
     sourceAI?: string
     targetAgent?: string
@@ -26,23 +26,25 @@ const WORKFLOW_OPTIONS: { value: WorkflowType; label: string }[] = [
   { value: 'ITERATIVE', label: 'ITERATIVE' },
 ]
 
-export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
+export const PromptInputSection = memo(function PromptInputSection({
+  onSubmit,
+}: PromptInputSectionProps) {
   const { t } = useTranslation()
   const { isPhaseStepActive, updateSettings } = useSettings()
   const [title, setTitle] = useState('')
   const [phase, setPhase] = useState('1')
   const [step, setStep] = useState('1')
-  const [gptPrompt, setGptPrompt] = useState('')
+  const [prompt, setPrompt] = useState('')
   const [workflowType, setWorkflowType] = useState<WorkflowType>('STRICT')
   const [isFastPassActive, setIsFastPassActive] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  const handleWorkflowChange = (value: WorkflowType) => {
+  const handleWorkflowChange = useCallback((value: WorkflowType) => {
     setWorkflowType(value)
     if (value !== 'STRICT') {
       setIsFastPassActive(false)
     }
-  }
+  }, [])
 
   const effectiveWorkflow: WorkflowType =
     workflowType === 'STRICT' && isFastPassActive ? 'FAST_PASS' : workflowType
@@ -57,28 +59,43 @@ export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
     ITERATIVE: t.promptForm.submitIterative,
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!gptPrompt.trim()) return
-    const phaseNum = isPhaseStepActive ? Number(phase) : 1
-    const stepNum = isPhaseStepActive ? Number(step) : 1
-    if (isPhaseStepActive && (!phaseNum || !stepNum)) return
-    const tags = tagsInput.trim()
-      ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
-      : undefined
-    onSubmit({
-      ...(title.trim() && { title: title.trim() }),
-      phase: phaseNum,
-      step: stepNum,
-      hasPhaseStep: isPhaseStepActive,
-      gptPrompt: gptPrompt.trim(),
-      workflowType: effectiveWorkflow,
-      ...(sourceAI.trim() && { sourceAI: sourceAI.trim() }),
-      ...(targetAgent.trim() && { targetAgent: targetAgent.trim() }),
-      ...(agentModel.trim() && { agentModel: agentModel.trim() }),
-      ...(tags && tags.length > 0 && { tags }),
-    })
-  }
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!prompt.trim()) return
+      const phaseNum = isPhaseStepActive ? Number(phase) : 1
+      const stepNum = isPhaseStepActive ? Number(step) : 1
+      if (isPhaseStepActive && (!phaseNum || !stepNum)) return
+      const tags = tagsInput.trim()
+        ? tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
+        : undefined
+      onSubmit({
+        ...(title.trim() && { title: title.trim() }),
+        phase: phaseNum,
+        step: stepNum,
+        hasPhaseStep: isPhaseStepActive,
+        prompt: prompt.trim(),
+        workflowType: effectiveWorkflow,
+        ...(sourceAI.trim() && { sourceAI: sourceAI.trim() }),
+        ...(targetAgent.trim() && { targetAgent: targetAgent.trim() }),
+        ...(agentModel.trim() && { agentModel: agentModel.trim() }),
+        ...(tags && tags.length > 0 && { tags }),
+      })
+    },
+    [
+      onSubmit,
+      isPhaseStepActive,
+      prompt,
+      phase,
+      step,
+      tagsInput,
+      title,
+      sourceAI,
+      targetAgent,
+      agentModel,
+      effectiveWorkflow,
+    ],
+  )
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -254,8 +271,8 @@ export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
         </label>
         <textarea
           rows={6}
-          value={gptPrompt}
-          onChange={(e) => setGptPrompt(e.target.value)}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
           className={textareaCls}
           placeholder={t.promptForm.promptPlaceholder}
           required
@@ -266,4 +283,4 @@ export function PromptInputSection({ onSubmit }: PromptInputSectionProps) {
       </div>
     </form>
   )
-}
+})

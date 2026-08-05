@@ -4,12 +4,12 @@ import { useTranslation } from '../hooks/useTranslation'
 import { textareaCls } from '../styles/formClasses'
 
 interface AgentProcessingSectionProps {
-  gptPrompt: string
+  prompt: string
   onSubmitLog: (log: string) => void
 }
 
 export function AgentProcessingSection({
-  gptPrompt,
+  prompt,
   onSubmitLog,
 }: AgentProcessingSectionProps) {
   const { t } = useTranslation()
@@ -26,7 +26,7 @@ export function AgentProcessingSection({
       <div className="flex flex-col gap-1.5 opacity-60">
         <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{t.agentProcessing.sentPromptLabel}</label>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 whitespace-pre-wrap dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-          {gptPrompt}
+          {prompt}
         </div>
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

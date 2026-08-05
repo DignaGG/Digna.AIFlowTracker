@@ -2,15 +2,15 @@ import { useCallback } from 'react'
 import { Button } from './Button'
 import { useTranslation } from '../hooks/useTranslation'
 
-interface GptFeedbackSectionProps {
+interface LlmFeedbackSectionProps {
   agentLog: string
   onCompleteCycle: () => void
 }
 
-export function GptFeedbackSection({
+export function LlmFeedbackSection({
   agentLog,
   onCompleteCycle,
-}: GptFeedbackSectionProps) {
+}: LlmFeedbackSectionProps) {
   const { t } = useTranslation()
   const copyLogToClipboard = useCallback(() => {
     navigator.clipboard.writeText(agentLog)
@@ -35,15 +35,15 @@ export function GptFeedbackSection({
           </svg>
         </div>
         <h3 className="text-lg font-bold text-red-800 dark:text-red-200">
-          {t.gptFeedback.title}
+          {t.llmFeedback.title}
         </h3>
         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-          {t.gptFeedback.description}
+          {t.llmFeedback.description}
         </p>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{t.gptFeedback.logLabel}</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">{t.llmFeedback.logLabel}</label>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-800 whitespace-pre-wrap dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {agentLog}
         </div>
@@ -51,10 +51,10 @@ export function GptFeedbackSection({
 
       <div className="flex flex-wrap gap-3">
         <Button variant="secondary" onClick={copyLogToClipboard}>
-          {t.gptFeedback.copyLog}
+          {t.llmFeedback.copyLog}
         </Button>
         <Button onClick={onCompleteCycle}>
-          {t.gptFeedback.completeCycle}
+          {t.llmFeedback.completeCycle}
         </Button>
       </div>
     </div>

@@ -20,9 +20,11 @@ function AppInner() {
   )
   const [showPasswordSettings, setShowPasswordSettings] = useState(false)
   const [inspectingStepId, setInspectingStepId] = useState<string | null>(null)
+  const [homeResetSignal, setHomeResetSignal] = useState(0)
 
   const onGoHome = useCallback(() => {
     setInspectingStepId(null)
+    setHomeResetSignal((prev) => prev + 1)
   }, [])
 
   const handleStepInspect = useCallback((id: string) => {
@@ -107,6 +109,7 @@ function AppInner() {
           inspectingStepId={inspectingStepId}
           onInspectStep={handleStepInspect}
           onCloseInspect={onGoHome}
+          homeResetSignal={homeResetSignal}
         />
       </div>
       <PasswordSettingsModal

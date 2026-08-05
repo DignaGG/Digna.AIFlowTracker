@@ -2,11 +2,19 @@ export const STEP_STATUS = {
   PROMPT_AWAITING: 'PROMPT_AWAITING',
   AGENT_PENDING: 'AGENT_PENDING',
   AGENT_PROCESSING: 'AGENT_PROCESSING',
-  GPT_FEEDBACK_REQUIRED: 'GPT_FEEDBACK_REQUIRED',
+  LLM_FEEDBACK_REQUIRED: 'LLM_FEEDBACK_REQUIRED',
   COMPLETED: 'COMPLETED',
 } as const
 
 export type StepStatus = typeof STEP_STATUS[keyof typeof STEP_STATUS]
+
+export interface IIterationCycle {
+  cycleId: string
+  timestamp: number
+  prompt: string
+  agentLog: string
+  notes?: string
+}
 
 export interface IStep {
   id: string
@@ -14,7 +22,7 @@ export interface IStep {
   phase: number
   step: number
   hasPhaseStep?: boolean
-  gptPrompt: string | null
+  prompt: string | null
   agentLog: string | null
   status: StepStatus
   createdAt: string
@@ -23,5 +31,6 @@ export interface IStep {
   targetAgent?: string
   agentModel?: string
   workflowType?: 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
+  iterationHistory?: IIterationCycle[]
   tags?: string[]
 }

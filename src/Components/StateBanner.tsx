@@ -25,7 +25,7 @@ const config: BannerConfig = {
     color: 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-800',
     icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
   },
-  [STEP_STATUS.GPT_FEEDBACK_REQUIRED]: {
+  [STEP_STATUS.LLM_FEEDBACK_REQUIRED]: {
     color: 'bg-red-50 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800',
     icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z',
   },
@@ -43,7 +43,7 @@ function getLabel(status: StepStatus, workflowType: StateBannerProps['workflowTy
     [STEP_STATUS.PROMPT_AWAITING]: 'promptAwaiting',
     [STEP_STATUS.AGENT_PENDING]: 'agentPending',
     [STEP_STATUS.AGENT_PROCESSING]: 'agentProcessing',
-    [STEP_STATUS.GPT_FEEDBACK_REQUIRED]: 'gptFeedbackRequired',
+    [STEP_STATUS.LLM_FEEDBACK_REQUIRED]: 'llmFeedbackRequired',
     [STEP_STATUS.COMPLETED]: 'completed',
   }
   return t.stateBanner[keyMap[status]]
