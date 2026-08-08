@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { IStep } from '../Interfaces/IStep'
 import { STEP_STATUS } from '../Interfaces/IStep'
 import { resolveStepTitle } from '../utils/stepTitle'
@@ -26,6 +26,7 @@ interface HomePageProps {
   onInspectStep: (id: string) => void
   onCloseInspect: () => void
   homeResetSignal: number
+  dataRefreshSignal?: number
 }
 
 export function HomePage({
@@ -33,6 +34,7 @@ export function HomePage({
   onInspectStep,
   onCloseInspect,
   homeResetSignal,
+  dataRefreshSignal,
 }: HomePageProps) {
   const { t } = useTranslation()
   const [activeSteps, setActiveSteps] = useState<IStep[]>([])
@@ -75,6 +77,16 @@ export function HomePage({
   useEffect(() => {
     refresh()
   }, [refresh])
+
+  const isFirstDataSignal = useRef(true)
+  useEffect(() => {
+    if (dataRefreshSignal === undefined) return
+    if (isFirstDataSignal.current) {
+      isFirstDataSignal.current = false
+      return
+    }
+    refresh()
+  }, [dataRefreshSignal, refresh])
 
   const handleCreateStep = useCallback(
     async (data: {

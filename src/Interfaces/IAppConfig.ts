@@ -3,4 +3,5 @@ export interface IAppConfig {
   preferredLanguage: 'tr' | 'en'
   defaultWorkflow: 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
   isPhaseStepActive?: boolean
+  theme?: 'light' | 'dark'
 }

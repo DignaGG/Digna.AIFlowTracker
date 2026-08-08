@@ -7,21 +7,33 @@ const DEFAULT_CONFIG: IAppConfig = {
   preferredLanguage: 'tr',
   defaultWorkflow: 'STRICT',
   isPhaseStepActive: false,
+  theme: 'light',
+}
+
+function migrateLegacyTheme(config: IAppConfig): IAppConfig {
+  if (config.theme) return config
+  const legacy = localStorage.getItem('theme')
+  const legacyTheme: IAppConfig['theme'] = legacy === 'd' ? 'dark' : legacy === 'l' ? 'light' : undefined
+  const migrated: IAppConfig = { ...config, theme: legacyTheme ?? DEFAULT_CONFIG.theme }
+  if (legacyTheme) localStorage.setItem(CONFIG_KEY, JSON.stringify(migrated))
+  return migrated
 }
 
 export function getConfig(): IAppConfig {
   const raw = localStorage.getItem(CONFIG_KEY)
-  if (!raw) return { ...DEFAULT_CONFIG }
+  if (!raw) return migrateLegacyTheme({ ...DEFAULT_CONFIG })
   try {
     const parsed = JSON.parse(raw) as IAppConfig
-    return {
+    const config: IAppConfig = {
       hasCompletedOnboarding: parsed.hasCompletedOnboarding ?? DEFAULT_CONFIG.hasCompletedOnboarding,
       preferredLanguage: parsed.preferredLanguage ?? DEFAULT_CONFIG.preferredLanguage,
       defaultWorkflow: parsed.defaultWorkflow ?? DEFAULT_CONFIG.defaultWorkflow,
       isPhaseStepActive: parsed.isPhaseStepActive ?? DEFAULT_CONFIG.isPhaseStepActive,
+      theme: parsed.theme,
     }
+    return migrateLegacyTheme(config)
   } catch {
-    return { ...DEFAULT_CONFIG }
+    return migrateLegacyTheme({ ...DEFAULT_CONFIG })
   }
 }
 

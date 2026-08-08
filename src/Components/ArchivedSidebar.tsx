@@ -121,13 +121,27 @@ export function ArchivedSidebar({ steps, onStepClick, onDeleteRequest }: Archive
 
       {!collapsed && (
         <div className="flex-none flex flex-col gap-2 border-b border-gray-200 p-4 dark:border-slate-700">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t.filters.searchPlaceholder}
-            className={inputCls}
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t.filters.searchPlaceholder}
+              className={`${inputCls} pr-8`}
+            />
+            {query.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label={t.filters.clearSearch}
+                className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <select
               value={phaseFilter}

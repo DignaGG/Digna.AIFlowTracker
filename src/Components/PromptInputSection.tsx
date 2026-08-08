@@ -4,6 +4,8 @@ import { useTranslation } from '../hooks/useTranslation'
 import { useSettings } from '../context/SettingsContext'
 import { inputCls, textareaCls } from '../styles/formClasses'
 
+const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.userAgent)
+
 type WorkflowType = 'STRICT' | 'FAST_PASS' | 'ITERATIVE'
 
 interface PromptInputSectionProps {
@@ -95,6 +97,18 @@ export const PromptInputSection = memo(function PromptInputSection({
       agentModel,
       effectiveWorkflow,
     ],
+  )
+
+  const handleTextareaKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        if (typeof e.currentTarget.form?.requestSubmit === 'function') {
+          e.currentTarget.form.requestSubmit()
+        }
+      }
+    },
+    [],
   )
 
   return (
@@ -273,12 +287,22 @@ export const PromptInputSection = memo(function PromptInputSection({
           rows={6}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={handleTextareaKeyDown}
           className={textareaCls}
           placeholder={t.promptForm.promptPlaceholder}
           required
         />
       </div>
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-3">
+        <span className="inline-flex items-center gap-1.5 text-slate-400 text-[11px]">
+          <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-semibold rounded border border-slate-700 bg-slate-800 text-slate-300 shadow-sm">
+            {isMac ? '⌘' : 'Ctrl'}
+          </kbd>
+          +
+          <kbd className="px-1.5 py-0.5 font-mono text-[10px] font-semibold rounded border border-slate-700 bg-slate-800 text-slate-300 shadow-sm">
+            Enter
+          </kbd>
+        </span>
         <Button type="submit">{submitLabels[effectiveWorkflow]}</Button>
       </div>
     </form>

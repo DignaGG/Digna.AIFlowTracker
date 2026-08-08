@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { IStep, IIterationCycle } from '../Interfaces/IStep'
 import { resolveStepTitle } from '../utils/stepTitle'
+import { downloadJsonFile } from '../utils/download'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { useTranslation } from '../hooks/useTranslation'
@@ -10,6 +11,12 @@ interface StepInspectionModalProps {
   isOpen: boolean
   onClose: () => void
   onDeleteRequest: (id: string) => void
+}
+
+function todayStamp(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 function CopyButton({ value }: { value: string | null }) {
@@ -148,6 +155,11 @@ export function StepInspectionModal({ step, isOpen, onClose, onDeleteRequest }: 
     onClose()
   }, [step, confirmingDelete, onDeleteRequest, onClose])
 
+  const handleDownload = useCallback(() => {
+    if (!step) return
+    downloadJsonFile(step, `digna_session_${step.id}_${todayStamp()}.json`)
+  }, [step])
+
   useEffect(() => {
     if (!isOpen) {
       setConfirmingDelete(false)
@@ -268,6 +280,9 @@ export function StepInspectionModal({ step, isOpen, onClose, onDeleteRequest }: 
         <div className="flex justify-end gap-2 border-t border-gray-200 pt-4 dark:border-slate-700">
           <Button variant="secondary" onClick={onClose}>
             {t.stepInspection.close}
+          </Button>
+          <Button variant="secondary" onClick={handleDownload}>
+            {t.stepInspection.download}
           </Button>
           <Button variant="danger" onClick={handleDelete}>
             {confirmingDelete ? t.stepInspection.confirmDelete : t.stepInspection.delete}

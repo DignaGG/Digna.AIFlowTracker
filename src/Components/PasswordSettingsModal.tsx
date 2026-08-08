@@ -5,20 +5,21 @@ import { useTranslation } from '../hooks/useTranslation'
 import { changeMasterPassword, changeAppPassword, removePasswordProtection, lock, DecryptionError } from '../Services/cryptoService'
 import { inputCls } from '../styles/formClasses'
 
-type ActiveView = 'MENU' | 'CHANGE_MASTER' | 'CHANGE_APP' | 'REMOVE'
+export type PasswordSettingsView = 'MENU' | 'CHANGE_MASTER' | 'CHANGE_APP' | 'REMOVE'
 
 interface PasswordSettingsModalProps {
   isOpen: boolean
   onClose: () => void
   onLock: () => void
   onPasswordRemoved: () => void
+  initialView?: PasswordSettingsView
+  cameFromSettings?: boolean
 }
 
-export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemoved }: PasswordSettingsModalProps) {
+export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemoved, initialView, cameFromSettings }: PasswordSettingsModalProps) {
   const { t } = useTranslation()
-  const [activeView, setActiveView] = useState<ActiveView>('MENU')
+  const [activeView, setActiveView] = useState<PasswordSettingsView>('MENU')
   const [currentMaster, setCurrentMaster] = useState('')
-  const [currentApp, setCurrentApp] = useState('')
   const [newValue, setNewValue] = useState('')
   const [confirmNewValue, setConfirmNewValue] = useState('')
   const [confirmingRemove, setConfirmingRemove] = useState(false)
@@ -42,10 +43,13 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
     return () => clearTimeouts()
   }, [])
 
+  useEffect(() => {
+    if (isOpen) setActiveView(initialView ?? 'MENU')
+  }, [isOpen, initialView])
+
   const resetForm = () => {
     clearTimeouts()
     setCurrentMaster('')
-    setCurrentApp('')
     setNewValue('')
     setConfirmNewValue('')
     setConfirmingRemove(false)
@@ -53,7 +57,7 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
     setSuccess('')
   }
 
-  const navigateTo = (view: ActiveView) => {
+  const navigateTo = (view: PasswordSettingsView) => {
     resetForm()
     setActiveView(view)
   }
@@ -64,6 +68,19 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
     onClose()
   }
 
+  const handleBack = () => {
+    if (
+      cameFromSettings ||
+      activeView === 'CHANGE_MASTER' ||
+      activeView === 'CHANGE_APP' ||
+      activeView === 'REMOVE'
+    ) {
+      handleClose()
+    } else {
+      navigateTo('MENU')
+    }
+  }
+
   const clearMessages = () => {
     setError('')
     setSuccess('')
@@ -71,7 +88,7 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
 
   const handleChangeMasterPassword = async () => {
     clearMessages()
-    if (!currentMaster || !currentApp || !newValue || !confirmNewValue) {
+    if (!currentMaster || !newValue || !confirmNewValue) {
       setError(t.passwordSettings.errorEmptyFields)
       return
     }
@@ -80,7 +97,7 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
       return
     }
     try {
-      await changeMasterPassword(currentMaster, currentApp, newValue)
+      await changeMasterPassword(currentMaster, newValue)
       setSuccess(t.passwordSettings.masterPasswordChanged)
       successTimeoutRef.current = setTimeout(() => handleClose(), 2000)
     } catch (err) {
@@ -94,7 +111,7 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
 
   const handleChangeAppPassword = async () => {
     clearMessages()
-    if (!currentMaster || !currentApp || !newValue || !confirmNewValue) {
+    if (!currentMaster || !newValue || !confirmNewValue) {
       setError(t.passwordSettings.errorEmptyFields)
       return
     }
@@ -103,7 +120,7 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
       return
     }
     try {
-      await changeAppPassword(currentMaster, currentApp, newValue)
+      await changeAppPassword(currentMaster, newValue)
       setSuccess(t.passwordSettings.appPasswordChanged)
       successTimeoutRef.current = setTimeout(() => handleClose(), 2000)
     } catch (err) {
@@ -128,12 +145,9 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
     }
     try {
       await removePasswordProtection(currentMaster)
-      setSuccess(t.passwordSettings.passwordRemoved)
       clearTimeouts()
-      successTimeoutRef.current = setTimeout(() => {
-        onPasswordRemoved()
-        handleClose()
-      }, 1500)
+      onPasswordRemoved()
+      handleClose()
     } catch (err) {
       if (err instanceof DecryptionError) {
         setError(t.passwordSettings.errorWrongPassword)
@@ -217,7 +231,7 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
   const renderBackButton = () => (
     <button
       type="button"
-      onClick={() => navigateTo('MENU')}
+      onClick={handleBack}
       className="mb-3 flex cursor-pointer items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
     >
       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -227,17 +241,41 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
     </button>
   )
 
+  const renderSegmentedTab = () => (
+    <div className="flex rounded-lg border border-gray-200 bg-gray-100 p-1 dark:border-slate-600 dark:bg-slate-700">
+      <button
+        type="button"
+        onClick={() => setActiveView('CHANGE_MASTER')}
+        className={`flex-1 cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          activeView === 'CHANGE_MASTER'
+            ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400'
+            : 'text-gray-600 hover:text-gray-900 dark:text-slate-300 dark:hover:text-slate-100'
+        }`}
+      >
+        {t.passwordSettings.tabs.master}
+      </button>
+      <button
+        type="button"
+        onClick={() => setActiveView('CHANGE_APP')}
+        className={`flex-1 cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          activeView === 'CHANGE_APP'
+            ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400'
+            : 'text-gray-600 hover:text-gray-900 dark:text-slate-300 dark:hover:text-slate-100'
+        }`}
+      >
+        {t.passwordSettings.tabs.app}
+      </button>
+    </div>
+  )
+
   const renderChangeMasterView = () => (
     <>
       {renderBackButton()}
+      {renderSegmentedTab()}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.passwordSettings.currentMasterPassword}</label>
           <input type="password" value={currentMaster} onChange={(e) => { setCurrentMaster(e.target.value); clearMessages() }} className={inputCls} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.passwordSettings.currentAppPassword}</label>
-          <input type="password" value={currentApp} onChange={(e) => { setCurrentApp(e.target.value); clearMessages() }} className={inputCls} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.passwordSettings.newMasterPassword}</label>
@@ -257,14 +295,11 @@ export function PasswordSettingsModal({ isOpen, onClose, onLock, onPasswordRemov
   const renderChangeAppView = () => (
     <>
       {renderBackButton()}
+      {renderSegmentedTab()}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.passwordSettings.currentMasterPassword}</label>
           <input type="password" value={currentMaster} onChange={(e) => { setCurrentMaster(e.target.value); clearMessages() }} className={inputCls} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.passwordSettings.currentAppPassword}</label>
-          <input type="password" value={currentApp} onChange={(e) => { setCurrentApp(e.target.value); clearMessages() }} className={inputCls} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-gray-500 dark:text-slate-400">{t.passwordSettings.newAppPassword}</label>

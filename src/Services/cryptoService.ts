@@ -6,6 +6,7 @@ const ITERATIONS = 100000
 const KEY_LENGTH = 256
 
 let cachedKey: CryptoKey | null = null
+let cachedKa: CryptoKey | null = null
 
 export class DecryptionError extends Error {
   constructor() {
@@ -121,6 +122,7 @@ export function isUnlocked(): boolean {
 
 export function lock(): void {
   cachedKey = null
+  cachedKa = null
 }
 
 export function isPasswordSetupComplete(): boolean {
@@ -168,6 +170,7 @@ export async function setupPasswords(
   localStorage.setItem(WRAPPED_KEY, JSON.stringify(wrapped))
   localStorage.setItem(ENC_KEY, 'enabled')
   cachedKey = km
+  cachedKa = ka
 
   const raw = localStorage.getItem(STORAGE_KEY)
   if (raw) {
@@ -211,6 +214,7 @@ export async function loginWithAppPassword(
       }
     }
     cachedKey = km
+    cachedKa = ka
     return true
   } catch {
     cachedKey = null
@@ -220,7 +224,6 @@ export async function loginWithAppPassword(
 
 export async function changeMasterPassword(
   currentMasterPassword: string,
-  appPassword: string,
   newMasterPassword: string,
 ): Promise<void> {
   const salt = getStoredSalt()
@@ -244,10 +247,10 @@ export async function changeMasterPassword(
     plainText = '[]'
   }
 
-  const ka = await deriveKey(appPassword, salt)
+  if (!cachedKa) throw new Error('Kilit açık değil')
   const newKm = await deriveKey(newMasterPassword, salt)
   const encrypted = await encryptWithKey(plainText, newKm)
-  const newWrapped = await encryptWithKey(newMasterPassword, ka)
+  const newWrapped = await encryptWithKey(newMasterPassword, cachedKa)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted))
   localStorage.setItem(WRAPPED_KEY, JSON.stringify(newWrapped))
   cachedKey = newKm
@@ -255,7 +258,6 @@ export async function changeMasterPassword(
 
 export async function changeAppPassword(
   masterPassword: string,
-  oldAppPassword: string,
   newAppPassword: string,
 ): Promise<void> {
   const salt = getStoredSalt()
@@ -278,19 +280,10 @@ export async function changeAppPassword(
     throw new Error('Şifreli veri bulunamadı, tutarsız durum')
   }
 
-  const oldKa = await deriveKey(oldAppPassword, salt)
-  const wrappedRaw = localStorage.getItem(WRAPPED_KEY)
-  if (!wrappedRaw) throw new Error('Sarmalanmış anahtar bulunamadı')
-  try {
-    const wrapped = JSON.parse(wrappedRaw) as { cipherText: string; iv: string }
-    await decryptWithKey(wrapped, oldKa)
-  } catch {
-    throw new DecryptionError()
-  }
-
   const newKa = await deriveKey(newAppPassword, salt)
   const newWrapped = await encryptWithKey(masterPassword, newKa)
   localStorage.setItem(WRAPPED_KEY, JSON.stringify(newWrapped))
+  cachedKa = newKa
 }
 
 export async function removePasswordProtection(
@@ -322,4 +315,5 @@ export async function removePasswordProtection(
   localStorage.removeItem(WRAPPED_KEY)
   localStorage.setItem(ENC_KEY, 'disabled')
   cachedKey = null
+  cachedKa = null
 }
